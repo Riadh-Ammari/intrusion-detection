@@ -1,0 +1,23 @@
+# Core dependencies for YOLOv5 training on Windows
+torch==2.4.1+cu118        # PyTorch with CUDA 11.8
+torchvision==0.19.1+cu118 # Image processing
+ultralytics==8.0.196      # YOLOv5-specific version
+numpy==1.24.4             # Numerical computations
+opencv-python==4.10.0     # Image processing
+pyyaml==6.0.2             # For parsing data.yaml
+pandas==2.0.3             # Data manipulation
+tqdm==4.67.1              # Progress bars
+matplotlib==3.7.5         # Plotting metrics
+seaborn==0.13.2           # Visualization
+pillow==10.2.0            # Image handling
+psutil==7.0.0             # System monitoring
+thop==0.1.1.post2209072238 # FLOPs calculation for YOLOv5
+
+# MLflow dependencies
+mlflow==2.17.2            # MLflow tracking, models, and registry
+sqlalchemy==2.0.41        # MLflow backend
+pymysql==1.1.0            # Optional: for MySQL backend
+psycopg2-binary==2.9.7    # Optional: for PostgreSQL backend
+
+# For model export (Windows and Jetson)
+onnx==1.14.1              # For ONNX export
