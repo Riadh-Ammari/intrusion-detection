@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intrusion Detection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #videoContainer {
+            position: relative;
+            max-width: 100%;
+        }
+        #videoElement {
+            width: 100%;
+            border-radius: 8px;
+        }
+        #canvasOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #detectionList {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6 max-w-2xl">
+        <header class="bg-green-600 text-white p-4 rounded-t-lg shadow-md">
+            <h1 class="text-2xl font-bold text-center">Intrusion Detection System</h1>
+            <p class="text-center text-sm">Powered by YOLOv5 - Presentation Ready</p>
+        </header>
+        <main class="bg-white p-6 rounded-b-lg shadow-md mt-4">
+            <div class="mb-4">
+                <label for="fileInput" class="block text-sm font-medium text-gray-700">Upload Image or Video</label>
+                <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.mp4,.avi" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+            <button onclick="processFile()" class="w-full bg-green-600 text-white p-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">Process File</button>
+            <div id="result" class="mt-4">
+                <p class="text-gray-600 text-center">Upload a file to see the detection results.</p>
+                <div id="detectionList" class="mt-2"></div>
+            </div>
+            <div id="videoContainer" class="mt-4 hidden">
+                <video id="videoElement" autoplay muted playsinline></video>
+                <canvas id="canvasOverlay"></canvas>
+            </div>
+            <div id="loading" class="hidden mt-4">
+                <div class="spinner"></div>
+                <p class="text-gray-600 mt-2 text-center">Processing...</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const canvasOverlay = document.getElementById('canvasOverlay');
+        const ctx = canvasOverlay.getContext('2d');
+        const resultDiv = document.getElementById('result');
+        const detectionList = document.getElementById('detectionList');
+        let currentDetections = [];
+
+        function renderDetections(detections) {
+            detectionList.innerHTML = '';
+            if (detections.length === 0) {
+                detectionList.innerHTML = '<p class="text-gray-600">No detections</p>';
+                return;
+            }
+            const ul = document.createElement('ul');
+            ul.className = 'list-disc pl-5 text-sm';
+            detections.forEach(det => {
+                const li = document.createElement('li');
+                li.innerText = `${det.class} (Conf: ${det.confidence.toFixed(2)}, BBox: [${det.bbox.map(x => x.toFixed(3)).join(', ')}])`;
+                ul.appendChild(li);
+            });
+            detectionList.appendChild(ul);
+        }
+
+        function updateCanvas() {
+            if (videoElement.readyState >= 2) {
+                ctx.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+                currentDetections.forEach(det => {
+                    const [x1, y1, x2, y2] = det.bbox;
+                    const width = canvasOverlay.width * (x2 - x1);
+                    const height = canvasOverlay.height * (y2 - y1);
+                    ctx.strokeStyle = det.class === 'person' ? 'red' : det.class === 'violence' ? 'blue' : 'green';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(
+                        x1 * canvasOverlay.width,
+                        y1 * canvasOverlay.height,
+                        width,
+                        height
+                    );
+                    ctx.fillStyle = 'white';
+                    ctx.font = '14px Arial';
+                    ctx.fillText(`${det.class} (${det.confidence.toFixed(2)})`, 
+                        x1 * canvasOverlay.width + 5, 
+                        y1 * canvasOverlay.height + 15
+                    );
+                });
+            }
+        }
+
+        function fetchDetections() {
+            fetch('/detections')
+                .then(response => response.json())
+                .then(data => {
+                    const currentTime = videoElement.currentTime || 0;
+                    const frameIndex = Math.floor(currentTime * 5); // Assuming 5 FPS
+                    const frameDets = data.find(d => d[0] === frameIndex) || [0, []];
+                    currentDetections = frameDets[1];
+                    renderDetections(currentDetections);
+                    updateCanvas();
+                })
+                .catch(() => {
+                    currentDetections = [];
+                    renderDetections([]);
+                    updateCanvas();
+                });
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const videoContainer = document.getElementById('videoContainer');
+            const loadingDiv = document.getElementById('loading');
+            const file = fileInput.files[0];
+            if (!file) {
+                resultDiv.innerHTML = '<p class="text-red-600 text-center">Please select a file first.</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '';
+            videoContainer.classList.add('hidden');
+            detectionList.innerHTML = '';
+            loadingDiv.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(file.type.startsWith('video/') ? '/process' : '/process_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`Processing failed: ${response.statusText}`);
+                if (file.type.startsWith('video/')) {
+                    videoElement.src = '/process';
+                    videoElement.onloadedmetadata = () => {
+                        canvasOverlay.width = videoElement.videoWidth;
+                        canvasOverlay.height = videoElement.videoHeight;
+                        videoContainer.classList.remove('hidden');
+                        loadingDiv.classList.add('hidden');
+                        setInterval(fetchDetections, 200); // Poll every 200ms
+                    };
+                } else {
+                    return response.json().then(data => {
+                        const binary = new Uint8Array(data.image.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                        const base64String = btoa(String.fromCharCode.apply(null, binary));
+                        const img = new Image();
+                        img.src = `data:image/jpeg;base64,${base64String}`;
+                        img.className = 'mt-2 rounded-md max-w-full';
+                        resultDiv.appendChild(img);
+                        renderDetections(data.detections);
+                        loadingDiv.classList.add('hidden');
+                    });
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<p class="text-red-600 text-center">Error: ${error.message}</p>`;
+                loadingDiv.classList.add('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
