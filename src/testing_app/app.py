@@ -8,7 +8,7 @@ import tempfile
 import json
 
 app = Flask(__name__, template_folder='templates')
-model_path = Path(r"C:\Users\amari\OneDrive\Desktop\EdgeAI_Project\runs\detect\train33\weights\best.pt")
+model_path = Path(r"C:\Users\amari\OneDrive\Desktop\EdgeAI_Project\runs\rlhf\refined_rlhf_20250914_185113\weights\best.pt")
 model = YOLO(model_path)
 
 # Class names from data.yaml

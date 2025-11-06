@@ -1,3 +1,42 @@
-/dataset_pre
-intrusiondetectiondvc.json
+# Datasets
+dataset/
+dataset_pre/
+data/
+*.zip
+*.tar
+*.tar.gz
+
+# DVC cache (keep .dvc files only)
+.cache/
+.dvc/cache/
+.dvc/tmp/
+
+# Models
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.pb
+*.h5
+
+# MLflow & YOLO runs
 mlruns/
+runs/
+wandb/
+
+# Jetson / build / CUDA
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.so
+
+# Logs & junk
+logs/
+*.log
+*.txt
+
+# VSCode / editors
+.vscode/
+.idea/
